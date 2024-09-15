@@ -83,6 +83,8 @@
         let obstacleSpawnTimer = 0;
         let spawnInterval = 200; // Интервал появления препятствий
         let difficulty = 'medium'; // Уровень сложности
+        let playerRotation = 0; // Угол поворота игрока
+        let playerRotationSpeed = 10; // Скорость вращения игрока
 
         // Высота земли
         const groundHeight = 50;
@@ -120,7 +122,7 @@
             if (mouseClicked && !player.jumping) {
                 player.velocityY = jumpPower;
                 player.jumping = true;
-                mouseClicked = false; // Сброс флага после прыжка
+                playerRotation = 0; // Сброс вращения при прыжке
             }
 
             // Гравитация
@@ -146,9 +148,9 @@
 
                 let obstacle = {
                     x: canvas.width,
-                    y: canvas.height - groundHeight - 30, // Высота препятствия (треугольник чуть выше земли)
+                    y: canvas.height - groundHeight - 20, // Опущены на землю
                     size: 40,
-                    speed: difficulty === 'medium' ? 2 + score * 0.05 : 4 + score * 0.07
+                    speed: difficulty === 'medium' ? 3 + score * 0.1 : 5 + score * 0.15 // Увеличиваем скорость препятствий
                 };
                 obstacles.push(obstacle);
             }
@@ -182,6 +184,13 @@
             if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
             if (player.y < 0) player.y = 0;
             if (player.y + player.height > canvas.height - groundHeight) player.y = canvas.height - groundHeight - player.height;
+
+            // Обновление угла вращения игрока
+            if (player.jumping) {
+                playerRotation += playerRotationSpeed;
+            } else {
+                playerRotation = 0;
+            }
         }
 
         function draw() {
@@ -191,9 +200,13 @@
             ctx.fillStyle = '#228B22'; // Трава
             ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
 
-            // Отрисовка игрока
+            // Отрисовка игрока с анимацией вращения
+            ctx.save();
+            ctx.translate(player.x + player.width / 2, player.y + player.height / 2);
+            ctx.rotate(playerRotation * Math.PI / 180);
             ctx.fillStyle = 'blue'; // Цвет игрока
-            ctx.fillRect(player.x, player.y, player.width, player.height);
+            ctx.fillRect(-player.width / 2, -player.height / 2, player.width, player.height);
+            ctx.restore();
 
             // Отрисовка препятствий
             obstacles.forEach(obstacle => {
@@ -218,7 +231,7 @@
             gameOverScreen.style.display = 'block';
         }
 
-        // Управление мышью
+        // Управление мышью и касанием экрана
         let mouseClicked = false;
 
         canvas.addEventListener('mousedown', () => {
@@ -226,6 +239,15 @@
         });
 
         canvas.addEventListener('mouseup', () => {
+            mouseClicked = false;
+        });
+
+        canvas.addEventListener('touchstart', (event) => {
+            mouseClicked = true;
+            event.preventDefault(); // Предотвращаем стандартное поведение браузера при касании
+        });
+
+        canvas.addEventListener('touchend', () => {
             mouseClicked = false;
         });
 
