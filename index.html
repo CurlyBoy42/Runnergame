@@ -77,7 +77,7 @@
 
         let player, obstacles;
         let gravity = 0.5;
-        let jumpPower = -10;
+        let jumpPower = -15; // Увеличение силы прыжка
         let score = 0;
         let gameActive = false;
         let obstacleSpawnTimer = 0;
@@ -148,8 +148,8 @@
 
                 let obstacle = {
                     x: canvas.width,
-                    y: canvas.height - groundHeight - 20, // Опущены на землю
-                    size: 40,
+                    y: canvas.height - groundHeight - 40, // Опущены на землю
+                    size: 50, // Увеличенный размер треугольников
                     speed: difficulty === 'medium' ? 3 + score * 0.1 : 5 + score * 0.15 // Увеличиваем скорость препятствий
                 };
                 obstacles.push(obstacle);
