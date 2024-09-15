@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2D Runner Game</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            font-family: Arial, sans-serif; 
+            text-align: center;
+        }
+        canvas { 
+            display: block; 
+            background: linear-gradient(to bottom, #87CEEB, #FFFFFF); /* Градиентное небо */
+            width: 100vw;
+            height: 100vh;
+        } 
+        #startScreen, #gameOverScreen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            display: none; 
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin-top: 10px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Окно старта -->
+    <div id="startScreen">
+        <h1>2D Runner Game</h1>
+        <button id="startButton">Начать игру</button>
+    </div>
+
+    <!-- Окно Game Over -->
+    <div id="gameOverScreen">
+        <h1>Game Over</h1>
+        <p id="finalScore">Your score: 0</p>
+        <button id="restartButton">Заново</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const finalScore = document.getElementById('finalScore');
+        const startButton = document.getElementById('startButton');
+        const restartButton = document.getElementById('restartButton');
+
+        // Установка размеров канваса
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let player, obstacles;
+        let gravity = 0.5;
+        let jumpPower = -10;
+        let score = 0;
+        let gameActive = false;
+        let obstacleSpawnTimer = 0;
+        let spawnInterval = 200; // Интервал появления препятствий
+        let difficulty = 'medium'; // Уровень сложности
+
+        // Высота земли
+        const groundHeight = 50;
+
+        function init() {
+            player = {
+                x: canvas.width / 4, // Перемещён ближе к центру
+                y: canvas.height - groundHeight - 50, // Начальная высота
+                width: 50,
+                height: 50,
+                velocityY: 0,
+                jumping: false
+            };
+            obstacles = [];
+            score = 0;
+            obstacleSpawnTimer = 0;
+            spawnInterval = difficulty === 'medium' ? 200 : 150; // Интервал появления препятствий
+            gameActive = true;
+
+            startScreen.style.display = 'none';
+            gameOverScreen.style.display = 'none';
+            requestAnimationFrame(gameLoop);
+        }
+
+        function gameLoop() {
+            if (gameActive) {
+                update();
+                draw();
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
+        function update() {
+            // Прыжок
+            if (mouseClicked && !player.jumping) {
+                player.velocityY = jumpPower;
+                player.jumping = true;
+                mouseClicked = false; // Сброс флага после прыжка
+            }
+
+            // Гравитация
+            player.velocityY += gravity;
+            player.y += player.velocityY;
+
+            // Проверка на приземление
+            if (player.y >= canvas.height - groundHeight - player.height) {
+                player.y = canvas.height - groundHeight - player.height;
+                player.velocityY = 0;
+                player.jumping = false;
+            }
+
+            // Усложнить игру после 30 очков
+            if (score >= 30) {
+                spawnInterval = difficulty === 'medium' ? 150 : 100; // Увеличиваем частоту появления препятствий в зависимости от сложности
+            }
+
+            // Логика создания препятствий
+            obstacleSpawnTimer++;
+            if (obstacleSpawnTimer > spawnInterval) {
+                obstacleSpawnTimer = 0;
+
+                let obstacle = {
+                    x: canvas.width,
+                    y: canvas.height - groundHeight - 30, // Высота препятствия (треугольник чуть выше земли)
+                    size: 40,
+                    speed: difficulty === 'medium' ? 2 + score * 0.05 : 4 + score * 0.07
+                };
+                obstacles.push(obstacle);
+            }
+
+            // Перемещение и удаление препятствий
+            obstacles.forEach(obstacle => {
+                obstacle.x -= obstacle.speed;
+            });
+            obstacles = obstacles.filter(obstacle => obstacle.x + obstacle.size > 0);
+
+            // Проверка на столкновения и увеличение очков
+            obstacles.forEach(obstacle => {
+                if (player.x < obstacle.x + obstacle.size &&
+                    player.x + player.width > obstacle.x &&
+                    player.y < obstacle.y + obstacle.size &&
+                    player.y + player.height > obstacle.y) {
+                    endGame(); 
+                }
+                if (obstacle.x + obstacle.size < player.x && !obstacle.passed) {
+                    score += 1;
+                    obstacle.passed = true;
+
+                    if (score % 5 === 0) {
+                        player.velocityY -= 0.5; // Уменьшаем силу прыжка
+                    }
+                }
+            });
+
+            // Проверка границ экрана
+            if (player.x < 0) player.x = 0;
+            if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+            if (player.y < 0) player.y = 0;
+            if (player.y + player.height > canvas.height - groundHeight) player.y = canvas.height - groundHeight - player.height;
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Отрисовка земли
+            ctx.fillStyle = '#228B22'; // Трава
+            ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
+
+            // Отрисовка игрока
+            ctx.fillStyle = 'blue'; // Цвет игрока
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+
+            // Отрисовка препятствий
+            obstacles.forEach(obstacle => {
+                ctx.fillStyle = 'red'; // Цвет треугольников
+                ctx.beginPath();
+                ctx.moveTo(obstacle.x, obstacle.y + obstacle.size);
+                ctx.lineTo(obstacle.x + obstacle.size / 2, obstacle.y);
+                ctx.lineTo(obstacle.x + obstacle.size, obstacle.y + obstacle.size);
+                ctx.closePath();
+                ctx.fill();
+            });
+
+            // Отрисовка очков
+            ctx.fillStyle = 'black';
+            ctx.font = '24px Arial';
+            ctx.fillText('Score: ' + score, 20, 40);
+        }
+
+        function endGame() {
+            gameActive = false; 
+            finalScore.textContent = 'Your score: ' + score;
+            gameOverScreen.style.display = 'block';
+        }
+
+        // Управление мышью
+        let mouseClicked = false;
+
+        canvas.addEventListener('mousedown', () => {
+            mouseClicked = true;
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            mouseClicked = false;
+        });
+
+        // События для кнопок
+        startButton.addEventListener('click', () => {
+            startScreen.style.display = 'none';
+            init();
+        });
+
+        restartButton.addEventListener('click', init);
+
+        // Показываем стартовый экран
+        startScreen.style.display = 'block';
+    </script>
+</body>
+</html>
